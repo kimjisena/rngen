@@ -1,7 +1,7 @@
 from bs4 import BeautifulSoup
 import os
 import argparse
-
+import ai
 
 def convert_to_bullet_list(element):
     markdown_string = str(element)
@@ -30,6 +30,15 @@ def convert_to_bullet_list(element):
         bullet_list += f'- {item}\n'
 
     return bullet_list
+
+def make_prefix_string(feature = '', description = '', acceptance_criteria = ''):
+    prefix = ''
+    prefix += f'**Feature**: {feature}\n\n'
+    prefix += f'**Description**: {description}\n\n'
+    prefix += '**Acceptance criteria**:\n\n'
+    prefix += acceptance_criteria
+    prefix += '\n\n---\n\n'
+    return prefix
 
 def extract_tables(markdown_file, output_file):
     print("STEP 1: Opening input file...")
@@ -73,18 +82,21 @@ def extract_tables(markdown_file, output_file):
         extracted_data.append((feature, description, acceptance_criteria))
 
     # Generate the new markdown file with extracted data
-    output_md = ''
-    print("STEP 4: Writing to output file...")
+    output_md = '# Release Notes\n\n'
+    print("STEP 4: Generating new markdown file with extracted data...")
     for data in extracted_data:
         feature, description, acceptance_criteria = data
-        output_md += f'**Feature**: {feature}\n\n'
-        output_md += f'**Description**: {description}\n\n'
-        output_md += '**Acceptance criteria**:\n\n'
-        output_md += acceptance_criteria
+        prefix = make_prefix_string(feature, description, acceptance_criteria)
+
+        print("\tSTEP 4.1: Using text-davinci-003 to generate release note...")
+        release_note = ai.get_release_note(prefix)
+
+        output_md += release_note
         output_md += '\n\n---\n\n'
 
     # Save the extracted data to the output markdown file
     with open(output_file, 'w') as file:
+        print("Writing release notes to output file...")
         file.write(output_md)
 
 def process_files(input_dir, output_dir):
