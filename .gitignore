@@ -1,4 +1,5 @@
 inputs/
 outputs/
+backup/
 out.txt
 .env

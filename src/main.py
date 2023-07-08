@@ -1,103 +1,6 @@
-from bs4 import BeautifulSoup
 import os
 import argparse
 import ai
-
-def convert_to_bullet_list(element):
-    markdown_string = str(element)
-    # Remove leading/trailing whitespace and HTML tags
-    markdown_string = markdown_string.strip()
-    markdown_string = markdown_string.replace('<td>', '')
-    markdown_string = markdown_string.replace('</td>', '')
-    markdown_string = markdown_string.replace('<ul>', '')
-    markdown_string = markdown_string.replace('</ul>', '')
-    markdown_string = markdown_string.replace('<li>', '')
-    markdown_string = markdown_string.replace('</li>', '')
-    # Split the string into individual list items
-    list_items = markdown_string.split('\n')
-
-    # Generate the bullet list
-    bullet_list = ''
-    for item in list_items:
-        # Remove any leading/trailing whitespace
-        item = item.strip()
-
-        # Skip empty items
-        if not item:
-            continue
-
-        # Add a bullet point and indentation to each item
-        bullet_list += f'- {item}\n'
-
-    return bullet_list
-
-def make_prefix_string(feature = '', description = '', acceptance_criteria = ''):
-    prefix = ''
-    prefix += f'**Feature**: {feature}\n\n'
-    prefix += f'**Description**: {description}\n\n'
-    prefix += '**Acceptance criteria**:\n\n'
-    prefix += acceptance_criteria
-    prefix += '\n\n---\n\n'
-    return prefix
-
-def extract_tables(markdown_file, output_file):
-    print("STEP 1: Opening input file...")
-    with open(markdown_file, 'r') as file:
-        markdown_data = file.read()
-
-    # Parse the markdown file
-    print("STEP 2: Parsing input file...")
-    soup = BeautifulSoup(markdown_data, 'html.parser')
-
-    # Find all tables in the markdown file
-    tables = soup.find_all('table')
-
-    extracted_data = []
-    print("STEP 3: Extracting tables..")
-    for table in tables:
-        # Find all table rows
-        rows = table.find_all('tr')
-
-        # Initialize variables
-        feature = ''
-        description = ''
-        acceptance_criteria = ''
-
-        # Extract the data based on row content
-        for row in rows:
-            cells = row.find_all('td')
-            if len(cells) == 2:
-                key = cells[0].text.strip()
-                value = cells[1]
-
-                if key == 'Feature':
-                    feature = value.text.strip()
-                    print(f"\tFeature: {value.text.strip()}")
-                elif key == 'Description':
-                    description = value.text.strip()
-                elif key == 'Acceptance criteria (assertions)':
-                    acceptance_criteria = convert_to_bullet_list(value)
-
-        # Append extracted data to the list
-        extracted_data.append((feature, description, acceptance_criteria))
-
-    # Generate the new markdown file with extracted data
-    output_md = '# Release Notes\n\n'
-    print("STEP 4: Generating new markdown file with extracted data...")
-    for data in extracted_data:
-        feature, description, acceptance_criteria = data
-        prefix = make_prefix_string(feature, description, acceptance_criteria)
-
-        print("\tSTEP 4.1: Using text-davinci-003 to generate release note...")
-        release_note = ai.get_release_note(prefix)
-
-        output_md += release_note
-        output_md += '\n\n---\n\n'
-
-    # Save the extracted data to the output markdown file
-    with open(output_file, 'w') as file:
-        print("Writing release notes to output file...")
-        file.write(output_md)
 
 def process_files(input_dir, output_dir):
     # Ensure that the input and output directories exist
@@ -114,11 +17,29 @@ def process_files(input_dir, output_dir):
         input_file = os.path.join(input_dir, filename)
         output_file = os.path.join(output_dir, filename)
 
-        # Call the second function to process the file
-        extract_tables(input_file, output_file)
+        process_sections(input_file, output_file)
         print(f"Extraction done.\nCheck the output file: {output_file}")
 
     print("File processing completed.")
+
+def process_sections(input_file, output_file):
+    with open(input_file, 'r') as file:
+        content = file.read()
+
+    sections = content.split('\n\n')[2:]
+    output_md = ''
+
+    for section in sections:
+        print("Using text-davinci-003 to generate release note...")
+        release_note = ai.get_release_note(section)
+        output_md += release_note
+        output_md += '\n---\n\n'
+
+    with open(output_file, 'w') as file:
+        print("Writing release notes to output file...")
+        file.write(output_md)
+    return sections
+
 
 def main():
     parser = argparse.ArgumentParser(description="Process input files and generate output files.")
